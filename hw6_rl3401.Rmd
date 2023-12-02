@@ -1,0 +1,97 @@
+---
+title: "p8105_hw6_rl3401"
+author: "Ruoxi Li"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+## Problem 1
+```{r}
+library(tidyverse)
+library(broom)
+library(purrr)
+library(ggplot2)
+```
+
+Create a city_state variable and a binary variable indicating whether the homicide is solved. Omit cities Dallas, TX; Phoenix, AZ; Kansas City, MO and omit Tulsa, AL. Limit the analysis those for whom victim_race is white or black. Be sure that victim_age is numeric.
+
+```{r}
+homicide_df_raw = read.csv("data/homicide-data.csv")
+
+homicide_df = homicide_df_raw |>
+  mutate(city_state = paste(city, state, sep = ", "),
+         solved = disposition == "Closed by arrest") |>
+  filter(!city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL"),
+         victim_race %in% c("White", "Black")) |>
+  mutate(victim_age = ifelse(victim_age == "Unknown", NA, victim_age)) |>
+  mutate(victim_age = as.numeric(victim_age))
+```
+
+For the city of Baltimore, MD, use the glm function to fit a logistic regression with resolved vs unresolved as the outcome and victim age, sex and race as predictors and obtain the estimate and confidence interval of the adjusted odds ratio for solving homicides comparing male victims to female victims keeping all other variables fixed.
+
+```{r}
+baltimore_df = homicide_df |>
+  filter(city_state == "Baltimore, MD")
+
+baltimore_model = glm(solved ~ victim_age + victim_sex + victim_race, 
+                       data = baltimore_df, family = "binomial")
+
+tidy_baltimore_model = tidy(baltimore_model)
+
+gender_comparison = tidy_baltimore_model |>
+  filter(term == "victim_sexMale")|>
+  mutate(or = exp(estimate),
+         lower_ci = exp(estimate - 1.96 * std.error),
+         upper_ci = exp(estimate + 1.96 * std.error))|>
+  knitr::kable()
+```
+
+Run glm for each of the cities in your dataset, and extract the adjusted odds ratio (and CI) for solving homicides comparing male victims to female victims. 
+
+```{r}
+city_models = homicide_df |>
+  group_by(city_state) |>
+  nest() |>
+  mutate(model = map(data, ~glm(solved ~ victim_age + victim_sex + victim_race,
+                                data = .x, family = "binomial"))) |>
+  mutate(tidy_model = map(model, broom::tidy))
+
+or_ci = city_models |>
+  mutate(gender_comparison = map(tidy_model, ~.x |>
+                                 filter(term == "victim_sexMale") |>
+                                 mutate(or = exp(estimate),
+                              lower_ci = exp(estimate - 1.96 * std.error),                                   upper_ci = exp(estimate + 1.96 * std.error)))) |>
+  select(city_state, gender_comparison) |>
+  unnest(gender_comparison)
+```
+
+Create a plot that shows the estimated ORs and CIs for each city. Organize cities according to estimated OR, and comment on the plot.
+
+```{r}
+ggplot(or_ci, aes(x = reorder(city_state, or), y = or)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0.2) +
+  coord_flip() +
+  labs(x = "City", y = "Adjusted Odds Ratio", 
+       title = "Adjusted Odds Ratios for Solving Homicides: Male vs Female Victims by City") +
+  theme_minimal()
+```
+
+## Problem 2
+
+Load the data.
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2022-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+```
+
