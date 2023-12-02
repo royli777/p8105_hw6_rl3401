@@ -166,3 +166,94 @@ The logarithm of absolute values was used because $hat{\beta_2}$ was negative, w
 A higher value in this range indicates a stronger influence of the two factors. 
 
 The logarithmic values of the distribution range from approximately -9 to -4, indicating a broad spread in the influence of two factors. Most values center around -5, suggesting a moderate influence. The distribution is left-skewed, meaning there's a higher frequency of higher influence values. 
+
+## Problem 3
+
+Load the data.
+
+```{r}
+birthweight_df = read_csv('data/birthweight.csv') 
+
+sum(is.na(birthweight_df))
+```
+
+There is no missing data. So next I converted numeric to factor where appropriate.
+
+```{r}
+birthweight_df$babysex <- as.factor(birthweight$babysex)
+birthweight_df$frace <- as.factor(birthweight$frace)
+birthweight_df$mrace <- as.factor(birthweight$mrace)
+birthweight_df$malform <- as.factor(birthweight$malform)
+```
+
+Fit a linear regression model.
+
+```{r}
+summary(birthweight_df)
+
+# exclude pnumlbw and pnumsga because all 0
+
+test_fit =
+  birthweight_df |>
+  lm(bwt ~ babysex + bhead + blength + delwt + fincome + frace + gaweeks + malform + menarche + mheight + momage + mrace + parity + ppbmi + ppwt + smoken + wtgain, data = _) |>
+  broom::tidy() |>
+  filter(p.value < 0.01)
+
+my_fit = 
+  birthweight_df |>
+  lm(bwt ~ mrace + blength + bhead+babysex+gaweeks, data = _)
+```
+
+I choose `bhead`, `blength`, `babysex`, `gaweeks` and `mrace` as the predictors, because they have the largest absolute coefficient(estimate>10) estimate and a small p value(p<0.01).
+
+
+```{r}
+birthweight_df |>
+  modelr::add_residuals(my_fit) |> 
+  mutate(
+    pred = modelr::add_predictions(birthweight_df, my_fit) |> pull(pred)
+  ) |> 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() +
+  labs(title = "Residuals vs fitted values")
+```
+
+For most of the fitted values, residuals spread randomly around zero. However, the residual distribution is slightly skewed and has some extremely large outliers at small fitted value. This may suggest that the model is still missing some important variables.
+
+Compare the model to two others:
+
+* One using length at birth and gestational age as predictors (main effects only)
+
+* One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+
+```{r}
+library(modelr)
+cv_df =
+  crossv_mc(birthweight_df, 100) |> 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)) |>
+  mutate(
+    mod_my = map(train, \(df) lm(bwt ~ bhead + blength + smoken, data = df)),
+    mod_1 = map(train, \(df) lm(bwt ~ blength + gaweeks, data = df)),
+    mod_2 = map(train, \(df) lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex, data = df)) 
+  )|> 
+  mutate(
+    rmse_my = map2_dbl(mod_my, test, \(mod, df) rmse(model = mod, data = df)),
+    rmse_1 = map2_dbl(mod_1, test, \(mod, df) rmse(model = mod, data = df)),
+    rmse_2 = map2_dbl(mod_2, test, \(mod, df) rmse(model = mod, data = df))
+  ) 
+
+cv_df |>
+  select(starts_with("rmse")) |> 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") |> 
+  mutate(model = fct_inorder(model)) |> 
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin()
+```
+
+From the plot, we can see that the performance of our model (using head circumference, length and mother’s race) and the second model (using head circumference, length, sex, and all interactions) are similar, while both are significantly better than the first model (using length at birth and gestational age, main effects only).
