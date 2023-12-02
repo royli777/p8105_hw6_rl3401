@@ -125,7 +125,7 @@ res =
     names_from = term,
     values_from = estimate,
   ) |>
-  mutate(log_bata = log ( tmin * abs(prcp)))
+  mutate(log_beta = log ( tmin * abs(prcp)))
 ```
 
 Identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for $\hat{r}^2$ and $log(\hat{\beta_1} * \hat{\beta_2})$.
@@ -134,9 +134,16 @@ Identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for $
 r_squared_ci <- quantile(res$r.squared, c(0.025, 0.975))
 
 log_beta_ci <- quantile(res$log_beta, c(0.025, 0.975))
+
+r_squared_ci
+log_beta_ci
 ```
 
-draw the plot.
+The 95% confidence interval for $\hat{r}^2$ is(0.89, 0.94).
+
+95% confidence interval for $log(\hat{\beta_1} * \hat{\beta_2})$ is (-8.92, -4.59).
+
+Now draw the plot.
 
 ```{r}
 ggplot(res, aes(x = r.squared)) +
@@ -155,7 +162,7 @@ The curve is smooth, which suggests that the bootstrap samples were large enough
 
 
 ```{r}
-ggplot(res, aes(x = log_bata)) +
+ggplot(res, aes(x = log_beta)) +
   geom_density()+
   labs(x = "Bootstrap Log(Beta1*Beta2)", y = "Frequency") +
   ggtitle("Distribution of Bootstrap Estimates for  Log(Beta1*Beta2)")
