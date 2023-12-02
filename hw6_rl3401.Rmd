@@ -129,11 +129,40 @@ res =
 ```
 
 Identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for $\hat{r}^2$ and $log(\hat{\beta_1} * \hat{\beta_2})$.
+
 ```{r}
 r_squared_ci <- quantile(res$r.squared, c(0.025, 0.975))
 
-log_beta_product_ci <- quantile(res$log_beta_product, c(0.025, 0.975))
-
-list(r_squared_ci = r_squared_ci, log_beta_product_ci = log_beta_product_ci)|>
-  knitr::kable()
+log_beta_ci <- quantile(res$log_beta, c(0.025, 0.975))
 ```
+
+draw the plot.
+
+```{r}
+ggplot(res, aes(x = r.squared)) +
+  geom_density()+
+  labs(x = "Bootstrap R-squared)", y = "Frequency") +
+  ggtitle("Distribution of Bootstrap Estimates for r̂²")
+```
+
+The goodness of fit of a model can be measured by $\hat{r}^2$.
+
+The plot is slightly left-skewed, with the range appears to be from just below 0.88 to just below 0.95.
+
+The highest frequency of values is around 0.92, which suggests that 0.92 is the most common estimate.
+
+The curve is smooth, which suggests that the bootstrap samples were large enough to provide a good approximation of the distribution.
+
+
+```{r}
+ggplot(res, aes(x = log_bata)) +
+  geom_density()+
+  labs(x = "Bootstrap Log(Beta1*Beta2)", y = "Frequency") +
+  ggtitle("Distribution of Bootstrap Estimates for  Log(Beta1*Beta2)")
+```
+
+The logarithm of absolute values was used because $hat{\beta_2}$ was negative, which cannot be directly logged.
+
+A higher value in this range indicates a stronger influence of the two factors. 
+
+The logarithmic values of the distribution range from approximately -9 to -4, indicating a broad spread in the influence of two factors. Most values center around -5, suggesting a moderate influence. The distribution is left-skewed, meaning there's a higher frequency of higher influence values. 
