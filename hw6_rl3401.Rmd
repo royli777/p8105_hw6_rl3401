@@ -95,3 +95,45 @@ weather_df =
   select(name, id, everything())
 ```
 
+Fit a simple linear regression with `tmax` as the response with `tmin` and `prcp` as the predictors.
+
+```{r}
+lm = lm(tmax ~ tmin + prcp, data = weather_df)
+   broom::tidy(lm)
+   broom::glance(lm)
+```
+
+Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. 
+
+```{r}
+res =   
+  weather_df |> 
+  modelr::bootstrap(n = 5000) |> 
+  mutate(
+    models = map(strap, \(df) lm(tmax ~ tmin + prcp, data = df)),
+    results = map(models, broom::tidy),
+    results2 = map(models, broom::glance)) |> 
+  select(results, results2) |> 
+  unnest(results2) |> 
+  select(r.squared, results) |>
+  unnest(results) |>
+  select(term, estimate, r.squared) |>
+  group_by(term) |>
+  mutate(group_id = ceiling((row_number() ))) %>%
+  ungroup() |>
+  pivot_wider(
+    names_from = term,
+    values_from = estimate,
+  ) |>
+  mutate(log_bata = log ( tmin * abs(prcp)))
+```
+
+Identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for $\hat{r}^2$ and $log(\hat{\beta_1} * \hat{\beta_2})$.
+```{r}
+r_squared_ci <- quantile(res$r.squared, c(0.025, 0.975))
+
+log_beta_product_ci <- quantile(res$log_beta_product, c(0.025, 0.975))
+
+list(r_squared_ci = r_squared_ci, log_beta_product_ci = log_beta_product_ci)|>
+  knitr::kable()
+```
