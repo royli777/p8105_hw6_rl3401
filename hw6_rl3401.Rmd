@@ -180,10 +180,10 @@ sum(is.na(birthweight_df))
 There is no missing data. So next I converted numeric to factor where appropriate.
 
 ```{r}
-birthweight_df$babysex <- as.factor(birthweight$babysex)
-birthweight_df$frace <- as.factor(birthweight$frace)
-birthweight_df$mrace <- as.factor(birthweight$mrace)
-birthweight_df$malform <- as.factor(birthweight$malform)
+birthweight_df$babysex <- as.factor(birthweight_df$babysex)
+birthweight_df$frace <- as.factor(birthweight_df$frace)
+birthweight_df$mrace <- as.factor(birthweight_df$mrace)
+birthweight_df$malform <- as.factor(birthweight_df$malform)
 ```
 
 Fit a linear regression model.
